@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wiki Taboo</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+<body>
+<iframe id="frame" src="https://en.wikipedia.org/wiki/Special:RandomInCategory/Good_articles"
+        style="height: 900px;width: 1600px"></iframe>
+<h1 id="timer">Click to start</h1>
+<br>Category:
+<label for="input"></label><input id="input" name="category" type="text">
+<a href="https://en.wikipedia.org/wiki/Special:Search?search=&ns14=1&fulltext=Search+Category+namespace&fulltext=Search" target="_blank">Find Categories</a>
+<script>
+    const TIME_LIMIT = 60;
+
+    const lastCategory = {category: "", pages: []};
+    const input = document.getElementById("input");
+
+    input.addEventListener("keyup", function (event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+
+            if (lastCategory.category !== input.value) {
+                lastCategory.category = input.value;
+
+                $.get("http://en.wikipedia.org/w/api.php", {
+                    action: 'query',
+                    list: 'categorymembers',
+                    cmtype: 'page',
+                    cmlimit: TIME_LIMIT >= 500 ? 500 : TIME_LIMIT,
+                    cmtitle: 'Category:' + input.value,
+                    format: 'json'
+
+                }, null, "jsonp").done(function (data) {
+                    const array = [];
+
+                    $.each(data.query.categorymembers, function (i, item) {
+                        array[i] = item.title;
+                    });
+                    lastCategory.pages = array;
+                    document.getElementById('frame').src = ("https://en.wikipedia.org/wiki/" + lastCategory.pages[Math.floor(Math.random() * TIME_LIMIT >= 500 ? 500 : TIME_LIMIT)]);
+
+                }).fail(function () {
+                    alert("Download Failed!")
+                });
+            } else document.getElementById('frame').src = ("https://en.wikipedia.org/wiki/" + lastCategory.pages[Math.floor(Math.random() * TIME_LIMIT >= 500 ? 500 : TIME_LIMIT)]);
+
+            if (document.getElementById('timer').innerText.toLowerCase() === "click to start") {
+                document.getElementById('timer').click();
+            }
+        }
+    });
+
+    let timer = null;
+    document.getElementById('timer').addEventListener('click', function () {
+        if (timer === null) {
+            let time = TIME_LIMIT;
+            document.getElementById('timer').innerText = "Begin!";
+            timer = setInterval(function () {
+                if (time === 0) {
+                    document.getElementById('timer').innerText = "Click to start";
+                    alert("Time's up!");
+                    time = TIME_LIMIT;
+                    clearInterval(timer);
+                    timer = null;
+                } else {
+                    let minutes = Math.floor(time / 60);
+                    let seconds = time % 60;
+                    if (seconds <= 10) seconds = '0' + seconds;
+                    document.getElementById('timer').innerText = minutes + ':' + seconds;
+                    time--;
+                }
+            }, 1000);
+        }
+    });
+</script>
+</body>
+</html>
