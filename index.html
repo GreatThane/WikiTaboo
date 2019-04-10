@@ -7,7 +7,7 @@
 </head>
 <body>
 <iframe id="frame" src="https://en.wikipedia.org/wiki/Special:RandomInCategory/Featured_articles"
-        style="height: 900px;width: 1600px"></iframe>
+        style="height: 800px;width: 1900px"></iframe>
 <h1 id="timer">Click to start</h1>
 <br>Category:
 <label for="input"></label><input id="input" name="category" type="text">
@@ -15,18 +15,16 @@
    target="_blank">Find Categories</a>
 <br>
 <p>The goal of this game is to get your teammates to guess the title of the article, not including any text within
-    parenthesises. However, you cannot say the name
-    of the article or anything from the infobox on the right. Compared to regular Taboo, the word at the top of the card
-    would be the title of the article (not including parenthesized text),
-    and the info box text would be the blacklisted terms below.</p>
+    parenthesises. However, you cannot say the name of the article or anything from the infobox on the right. Compared
+    to regular Taboo, the word at the top of the card would be the title of the article (not including parenthesized
+    text), and the info box text would be the blacklisted terms below.</p>
 <script>
-    // cannot be more than 500 seconds.
-    let TIME_LIMIT = 60;
+    const TIME_LIMIT = 60;
+    const ARTICLE_POOL_SIZE = 500;
 
     const API = "http://en.wikipedia.org/w/api.php";
     const lastCategory = {category: "", pages: []};
     const input = document.getElementById("input");
-    if (TIME_LIMIT > 500) TIME_LIMIT = 500;
 
     function isValidTitle(title) {
         return (!title.toLowerCase().startsWith("portal:") && !title.toLowerCase().startsWith("list of"));
@@ -43,7 +41,7 @@
                     action: 'query',
                     list: 'categorymembers',
                     cmtype: 'page',
-                    cmlimit: TIME_LIMIT,
+                    cmlimit: ARTICLE_POOL_SIZE,
                     cmtitle: 'Category:' + input.value,
                     format: 'json'
 
@@ -55,13 +53,14 @@
                             array[array.length] = item.title;
                         }
                     });
-                    if (array.length < TIME_LIMIT) {
+                    if (array.length < ARTICLE_POOL_SIZE) {
                         $.get(API, {
                             action: 'query',
                             list: 'categorymembers',
                             cmtype: 'subcat',
                             cmtitle: 'Category:' + input.value,
                             format: 'json'
+
                         }, null, "jsonp").done(function (data) {
                             $.each(data.query.categorymembers, function (i, item) {
 
@@ -69,7 +68,7 @@
                                     action: 'query',
                                     list: 'categorymembers',
                                     cmtype: 'page',
-                                    cmlimit: TIME_LIMIT,
+                                    cmlimit: ARTICLE_POOL_SIZE,
                                     cmtitle: item.title,
                                     format: 'json'
 
@@ -80,7 +79,7 @@
                                         }
                                     })
                                 });
-                                if (array.length >= TIME_LIMIT) return false;
+                                if (array.length >= ARTICLE_POOL_SIZE) return false;
                             });
                             lastCategory.pages = array;
                         });
