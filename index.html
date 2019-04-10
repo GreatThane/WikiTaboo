@@ -6,17 +6,31 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
 <body>
-<iframe id="frame" src="https://en.wikipedia.org/wiki/Special:RandomInCategory/Good_articles"
+<iframe id="frame" src="https://en.wikipedia.org/wiki/Special:RandomInCategory/Featured_articles"
         style="height: 900px;width: 1600px"></iframe>
 <h1 id="timer">Click to start</h1>
 <br>Category:
 <label for="input"></label><input id="input" name="category" type="text">
-<a href="https://en.wikipedia.org/wiki/Special:Search?search=&ns14=1&fulltext=Search+Category+namespace&fulltext=Search" target="_blank">Find Categories</a>
+<a href="https://en.wikipedia.org/wiki/Special:Search?search=&ns14=1&fulltext=Search+Category+namespace&fulltext=Search"
+   target="_blank">Find Categories</a>
+<br>
+<p>The goal of this game is to get your teammates to guess the title of the article, not including any text within
+    parenthesises. However, you cannot say the name
+    of the article or anything from the infobox on the right. Compared to regular Taboo, the word at the top of the card
+    would be the title of the article (not including parenthesized text),
+    and the info box text would be the blacklisted terms below.</p>
 <script>
-    const TIME_LIMIT = 60;
+    // cannot be more than 500 seconds.
+    let TIME_LIMIT = 60;
 
+    const API = "http://en.wikipedia.org/w/api.php";
     const lastCategory = {category: "", pages: []};
     const input = document.getElementById("input");
+    if (TIME_LIMIT > 500) TIME_LIMIT = 500;
+
+    function isValidTitle(title) {
+        return (!title.toLowerCase().startsWith("portal:") && !title.toLowerCase().startsWith("list of"));
+    }
 
     input.addEventListener("keyup", function (event) {
         if (event.key === "Enter") {
@@ -25,11 +39,11 @@
             if (lastCategory.category !== input.value) {
                 lastCategory.category = input.value;
 
-                $.get("http://en.wikipedia.org/w/api.php", {
+                $.get(API, {
                     action: 'query',
                     list: 'categorymembers',
                     cmtype: 'page',
-                    cmlimit: TIME_LIMIT >= 500 ? 500 : TIME_LIMIT,
+                    cmlimit: TIME_LIMIT,
                     cmtitle: 'Category:' + input.value,
                     format: 'json'
 
@@ -37,15 +51,48 @@
                     const array = [];
 
                     $.each(data.query.categorymembers, function (i, item) {
-                        array[i] = item.title;
+                        if (isValidTitle(item.title)) {
+                            array[array.length] = item.title;
+                        }
                     });
+                    if (array.length < TIME_LIMIT) {
+                        $.get(API, {
+                            action: 'query',
+                            list: 'categorymembers',
+                            cmtype: 'subcat',
+                            cmtitle: 'Category:' + input.value,
+                            format: 'json'
+                        }, null, "jsonp").done(function (data) {
+                            $.each(data.query.categorymembers, function (i, item) {
+
+                                $.get(API, {
+                                    action: 'query',
+                                    list: 'categorymembers',
+                                    cmtype: 'page',
+                                    cmlimit: TIME_LIMIT,
+                                    cmtitle: item.title,
+                                    format: 'json'
+
+                                }, null, "jsonp").done(function (data) {
+                                    $.each(data.query.categorymembers, function (i, item) {
+                                        if (isValidTitle(item.title)) {
+                                            array[array.length] = item.title;
+                                        }
+                                    })
+                                });
+                                if (array.length >= TIME_LIMIT) return false;
+                            });
+                            lastCategory.pages = array;
+                        });
+                    }
+
                     lastCategory.pages = array;
-                    document.getElementById('frame').src = ("https://en.wikipedia.org/wiki/" + lastCategory.pages[Math.floor(Math.random() * TIME_LIMIT >= 500 ? 500 : TIME_LIMIT)]);
+                    document.getElementById('frame').src = ("https://en.wikipedia.org/wiki/" + lastCategory.pages[Math.floor(Math.random() * lastCategory.pages.length)]);
 
                 }).fail(function () {
                     alert("Download Failed!")
                 });
-            } else document.getElementById('frame').src = ("https://en.wikipedia.org/wiki/" + lastCategory.pages[Math.floor(Math.random() * TIME_LIMIT >= 500 ? 500 : TIME_LIMIT)]);
+            } else document.getElementById('frame').src = ("https://en.wikipedia.org/wiki/" + lastCategory.pages[Math.floor(Math.random() * lastCategory.pages.length)]);
 
             if (document.getElementById('timer').innerText.toLowerCase() === "click to start") {
                 document.getElementById('timer').click();
@@ -59,6 +106,7 @@
             let time = TIME_LIMIT;
             document.getElementById('timer').innerText = "Begin!";
             timer = setInterval(function () {
+                time--;
                 if (time === 0) {
                     document.getElementById('timer').innerText = "Click to start";
                     alert("Time's up!");
@@ -68,9 +116,8 @@
                 } else {
                     let minutes = Math.floor(time / 60);
                     let seconds = time % 60;
-                    if (seconds <= 10) seconds = '0' + seconds;
+                    if (seconds < 10) seconds = '0' + seconds;
                     document.getElementById('timer').innerText = minutes + ':' + seconds;
-                    time--;
                 }
             }, 1000);
         }
